@@ -519,6 +519,143 @@ Tab:CreateToggle({
 })
 
 
+local noclipConnection = nil
+local noclipGuiObject = nil
+
+Tab:CreateToggle({
+   Name = "Enable Noclip Tool",
+   CurrentValue = false,
+   Flag = "NoclipMasterToggle",
+   Callback = function(Value)
+      if Value then
+         -- ==================== TOGGLE ON: SPAWN SCRIPT ====================
+         local player = game.Players.LocalPlayer
+         local RunService = game:GetService("RunService")
+         
+         -- Clean up any old instance before starting
+         pcall(function() if noclipGuiObject then noclipGuiObject:Destroy() end end)
+
+         -- Create GUI (aminos29T Design)
+         local gui = Instance.new("ScreenGui")
+         gui.Name = "NoclipGui"
+         gui.ResetOnSpawn = false
+         gui.Parent = game:GetService("CoreGui") -- Using CoreGui for persistence
+         noclipGuiObject = gui
+
+         local frame = Instance.new("Frame", gui)
+         frame.Size = UDim2.new(0, 200, 0, 100)
+         frame.Position = UDim2.new(0, 20, 0, 120) -- Moved down so it doesn't block Rayfield
+         frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+         frame.BackgroundTransparency = 0.3
+         frame.BorderSizePixel = 0
+         frame.Active = true
+
+         local title = Instance.new("TextLabel", frame)
+         title.Size = UDim2.new(1, 0, 0, 30)
+         title.Text = "by aminos29T"
+         title.TextColor3 = Color3.fromRGB(255, 255, 255)
+         title.BackgroundTransparency = 1
+         title.Font = Enum.Font.SourceSansBold
+         title.TextSize = 20
+
+         local label = Instance.new("TextLabel", frame)
+         label.Size = UDim2.new(1, 0, 0, 20)
+         label.Position = UDim2.new(0, 0, 0, 30)
+         label.Text = "noclip"
+         label.TextColor3 = Color3.fromRGB(200, 200, 205)
+         label.BackgroundTransparency = 1
+         label.Font = Enum.Font.SourceSans
+         label.TextSize = 18
+
+         local button = Instance.new("TextButton", frame)
+         button.Size = UDim2.new(0.8, 0, 0, 30)
+         button.Position = UDim2.new(0.1, 0, 0, 60)
+         button.Text = "Attiva Noclip"
+         button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+         button.TextColor3 = Color3.fromRGB(255, 255, 255)
+         button.Font = Enum.Font.SourceSans
+         button.TextSize = 16
+
+         -- Logic inside the spawned GUI
+         local isNoclipping = false
+         
+         button.MouseButton1Click:Connect(function()
+            isNoclipping = not isNoclipping
+            button.Text = isNoclipping and "Disattiva Noclip" or "Attiva Noclip"
+            
+            if isNoclipping then
+               noclipConnection = RunService.Stepped:Connect(function()
+                  if player.Character then
+                     for _, part in pairs(player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") and part.CanCollide then
+                           part.CanCollide = false
+                        end
+                     end
+                  end
+               end)
+            else
+               if noclipConnection then noclipConnection:Disconnect() end
+               -- Restore collision
+               if player.Character then
+                  for _, part in pairs(player.Character:GetDescendants()) do
+                     if part:IsA("BasePart") then
+                        part.CanCollide = true
+                     end
+                  end
+               end
+            end
+         end)
+
+         -- Mobile/PC Drag System
+         local UIS = game:GetService("UserInputService")
+         local dragging, dragInput, dragStart, startPos
+         frame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+               dragging = true; dragStart = input.Position; startPos = frame.Position
+               input.Changed:Connect(function()
+                  if input.UserInputState == Enum.UserInputState.End then dragging = false end
+               end)
+            end
+         end)
+         frame.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+               dragInput = input
+            end
+         end)
+         UIS.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+               local delta = input.Position - dragStart
+               frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+         end)
+
+      else
+         -- ==================== TOGGLE OFF: CLEANUP ====================
+         -- 1. Stop the Noclip loop
+         if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+         end
+
+         -- 2. Restore character collision
+         local player = game.Players.LocalPlayer
+         if player.Character then
+            for _, part in pairs(player.Character:GetDescendants()) do
+               if part:IsA("BasePart") then
+                  part.CanCollide = true
+               end
+            end
+         end
+
+         -- 3. Destroy the GUI
+         if noclipGuiObject then
+            noclipGuiObject:Destroy()
+            noclipGuiObject = nil
+         end
+      end
+   end,
+})
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
