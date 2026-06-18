@@ -103,7 +103,6 @@ Tab:CreateToggle({
          -- ==================== TOGGLE ON ====================
          HighlightFolder = Instance.new("Folder")
          HighlightFolder.Name = "Visuals_Folder"
-         -- FIXED: Changed Parent from CoreGui to PlayerGui to fix the callback error
          HighlightFolder.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
          local function startESP(player)
@@ -120,12 +119,19 @@ Tab:CreateToggle({
                   head.OverheadNametag:Destroy() 
                end
 
+               -- Get the player's team color, or default to white if neutral
+               local teamColor = Color3.fromRGB(255, 255, 255)
+               if player.Team then
+                  teamColor = player.TeamColor.Color
+               end
+
                -- Render Wallhack Highlight (Chams)
                local highlight = Instance.new("Highlight")
                highlight.Name = player.Name
-               highlight.FillColor = Color3.fromRGB(255, 0, 0)
+               -- UPDATED: Dynamic team coloring applied here
+               highlight.FillColor = teamColor
                highlight.FillTransparency = 0.5
-               highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+               highlight.OutlineColor = teamColor
                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                highlight.Adornee = character
                highlight.Parent = HighlightFolder
@@ -149,10 +155,10 @@ Tab:CreateToggle({
                   uiCorner.CornerRadius = UDim.new(0, 10)
                   uiCorner.Parent = frame
 
-                  -- Bright Red Outline
+                  -- Dynamic Team Color Outline
                   local uiStroke = Instance.new("UIStroke")
                   uiStroke.Thickness = 1.5
-                  uiStroke.Color = Color3.fromRGB(255, 0, 0)
+                  uiStroke.Color = teamColor
                   uiStroke.Parent = frame
 
                   -- DisplayName Text Configuration
@@ -172,6 +178,14 @@ Tab:CreateToggle({
             if player.Character then 
                task.spawn(onCharacterAdded, player.Character) 
             end
+            
+            -- Update colors if the player changes teams mid-game
+            player:GetPropertyChangedSignal("Team"):Connect(function()
+               if player.Character then
+                  onCharacterAdded(player.Character)
+               end
+            end)
+
             EventConnections[player] = player.CharacterAdded:Connect(onCharacterAdded)
          end
 
@@ -193,19 +207,16 @@ Tab:CreateToggle({
          end)
       else
          -- ==================== TOGGLE OFF ====================
-         -- Clean up event loops
          for key, connection in pairs(EventConnections) do 
             if connection then connection:Disconnect() end
          end
          EventConnections = {}
 
-         -- Remove Visual Folders
          if HighlightFolder then 
             HighlightFolder:Destroy() 
             HighlightFolder = nil 
          end
 
-         -- Strip all nametags from players currently alive
          for _, player in ipairs(Players:GetPlayers()) do
             if player.Character and player.Character:FindFirstChild("Head") then
                local tag = player.Character.Head:FindFirstChild("OverheadNametag")
