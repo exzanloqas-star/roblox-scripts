@@ -21,6 +21,10 @@ local VehicleTab = Window:CreateTab("Vehicles", 4483362458)
 local TargetWalkSpeed = 16
 local TargetJumpPower = 50
 local InfiniteJumpEnabled = false
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local EventConnections = {}
+local HighlightFolder = nil
 
 -- Persistent Loop to force values against anti-cheats
 task.spawn(function()
@@ -108,7 +112,7 @@ HighlightFolder.Parent = CoreGui
            local head = character:WaitForChild("Head", 5)
            
            -- Safely clean up any duplicate instances on respawn
-           if HighlightFolder:FindFirstChild(player.Name) then 
+           if HighlightFolder and HighlightFolder:FindFirstChild(player.Name) then 
               HighlightFolder[player.Name]:Destroy() 
            end
            if head and head:FindFirstChild("OverheadNametag") then 
@@ -178,7 +182,7 @@ HighlightFolder.Parent = CoreGui
      -- Listen for players joining and leaving
      EventConnections["PlayerAdded"] = Players.PlayerAdded:Connect(startESP)
      EventConnections["PlayerRemoving"] = Players.PlayerRemoving:Connect(function(player)
-        if HighlightFolder:FindFirstChild(player.Name) then 
+        if HighlightFolder and HighlightFolder:FindFirstChild(player.Name) then 
            HighlightFolder[player.Name]:Destroy() 
         end
         if EventConnections[player] then 
@@ -190,7 +194,7 @@ HighlightFolder.Parent = CoreGui
      -- ==================== TOGGLE OFF ====================
      -- Clean up event loops
      for key, connection in pairs(EventConnections) do 
-        connection:Disconnect() 
+        if connection then connection:Disconnect() end
      end
      EventConnections = {}
 
@@ -210,7 +214,6 @@ HighlightFolder.Parent = CoreGui
         end
      end
   end
-
 
 end,
 })
