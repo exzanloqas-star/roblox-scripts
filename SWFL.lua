@@ -94,137 +94,214 @@ local InfiniteJumpToggle = Tab:CreateToggle({
 
 
 
+-- Global storage for managing ESP states across toggles
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local ActiveESP = {}
+local ESP_Loop = nil
+local ESP_Connection1 = nil
+local ESP_Connection2 = nil
+local ESPFolder = nil
+
+-- Helper function to safely detect custom teams/roles in roleplay games
+local function getPlayerTeamInfo(player)
+    local teamName = "No Team"
+    local teamColor = Color3.fromRGB(255, 255, 255) -- Default White
+
+    if player.Team then
+        teamName = player.Team.Name
+        teamColor = player.TeamColor.Color
+        return teamName, teamColor
+    end
+
+    local customIdentifiers = {"Team", "Role", "Job", "Rank"}
+    for _, name in ipairs(customIdentifiers) do
+        local found = player:FindFirstChild(name) or (player.Character and player.Character:FindFirstChild(name))
+        if found then
+            if found:IsA("StringValue") or found:IsA("ObjectValue") then
+                teamName = tostring(found.Value)
+                if found:IsA("ObjectValue") and found.Value and found.Value:FindFirstChild("TeamColor") then
+                    teamColor = found.Value.TeamColor.Value
+                elseif player:FindFirstChild("TeamColor") then
+                    teamColor = player.TeamColor.Value
+                end
+                return teamName, teamColor
+            end
+        end
+        local attr = player:GetAttribute(name)
+        if attr then return tostring(attr), teamColor end
+    end
+    return teamName, teamColor
+end
+
+local function createESP(player)
+    if player == LocalPlayer then return end
+
+    local function onCharacterAdded(character)
+        local hrp = character:WaitForChild("HumanoidRootPart", 10)
+        if not hrp or not ESPFolder then return end
+
+        if ESPFolder:FindFirstChild(player.Name) then
+            ESPFolder[player.Name]:Destroy()
+        end
+
+        local playerVisuals = Instance.new("Folder")
+        playerVisuals.Name = player.Name
+        playerVisuals.Parent = ESPFolder
+
+        local teamName, teamColor = getPlayerTeamInfo(player)
+
+        -- 1. THE 2D BOX FRAME
+        local boxFrame = Instance.new("Frame")
+        boxFrame.Name = "2DBox"
+        boxFrame.BackgroundTransparency = 1
+        boxFrame.Visible = false
+        boxFrame.Parent = playerVisuals
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 1.5
+        stroke.Color = teamColor
+        stroke.Parent = boxFrame
+
+        -- 2. THE TWO-LINE NAMETAG
+        local frame = Instance.new("Frame")
+        frame.Name = "ESPNametag"
+        frame.Size = UDim2.new(0, 180, 0, 45)
+        frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        frame.BackgroundTransparency = 0.3
+        frame.Visible = false
+        frame.Parent = playerVisuals
+
+        local uiCorner = Instance.new("UICorner")
+        uiCorner.CornerRadius = UDim.new(0, 8)
+        uiCorner.Parent = frame
+
+        local uiStroke = Instance.new("UIStroke")
+        uiStroke.Thickness = 1.5
+        uiStroke.Color = teamColor
+        uiStroke.Parent = frame
+
+        -- Line 1: Custom Team Name
+        local teamLabel = Instance.new("TextLabel")
+        teamLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        teamLabel.Position = UDim2.new(0, 0, 0, 2)
+        teamLabel.BackgroundTransparency = 1
+        teamLabel.Text = teamName:upper()
+        teamLabel.TextColor3 = teamColor
+        teamLabel.Font = Enum.Font.GothamBold
+        teamLabel.TextSize = 11
+        teamLabel.Parent = frame
+
+        -- Line 2: Player Identity Display Name
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        textLabel.Position = UDim2.new(0, 0, 0.5, -2)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = player.DisplayName
+        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.Font = Enum.Font.GothamBold
+        textLabel.TextSize = 12
+        textLabel.Parent = frame
+
+        ActiveESP[player] = {
+            Character = character,
+            HRP = hrp,
+            Box = boxFrame,
+            Tag = frame,
+            TeamTxt = teamLabel,
+            Stroke = stroke,
+            TagStroke = uiStroke
+        }
+    end
+
+    if player.Character then
+        task.spawn(onCharacterAdded, player.Character)
+    end
+    player.CharacterAdded:Connect(onCharacterAdded)
+end
+
+-- Rayfield Toggle Integration
 Tab:CreateToggle({
-   Name = "ESP Master (Highlight & Nametags)",
+   Name = "2D Box Team-ESP",
    CurrentValue = false,
-   Flag = "EspMasterToggle",
+   Flag = "2DTeamEspToggle",
    Callback = function(Value)
       if Value then
          -- ==================== TOGGLE ON ====================
-         HighlightFolder = Instance.new("Folder")
-         HighlightFolder.Name = "Visuals_Folder"
-         HighlightFolder.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+         ESPFolder = Instance.new("ScreenGui")
+         ESPFolder.Name = "Rayfield_2D_ESP"
+         ESPFolder.ResetOnSpawn = false
+         ESPFolder.IgnoreGuiInset = true
+         ESPFolder.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-         local function startESP(player)
-            if player == Players.LocalPlayer then return end
-
-            local function onCharacterAdded(character)
-               local head = character:WaitForChild("Head", 5)
-               
-               -- Safely clean up any duplicate instances on respawn
-               if HighlightFolder and HighlightFolder:FindFirstChild(player.Name) then 
-                  HighlightFolder[player.Name]:Destroy() 
-               end
-               if head and head:FindFirstChild("OverheadNametag") then 
-                  head.OverheadNametag:Destroy() 
-               end
-
-               -- Get the player's team color, or default to white if neutral
-               local teamColor = Color3.fromRGB(255, 255, 255)
-               if player.Team then
-                  teamColor = player.TeamColor.Color
-               end
-
-               -- Render Wallhack Highlight (Chams)
-               local highlight = Instance.new("Highlight")
-               highlight.Name = player.Name
-               -- UPDATED: Dynamic team coloring applied here
-               highlight.FillColor = teamColor
-               highlight.FillTransparency = 0.5
-               highlight.OutlineColor = teamColor
-               highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-               highlight.Adornee = character
-               highlight.Parent = HighlightFolder
-
-               -- Render Rounded Overhead DisplayName Tag
-               if head then
-                  local billboard = Instance.new("BillboardGui")
-                  billboard.Name = "OverheadNametag"
-                  billboard.Size = UDim2.new(0, 180, 0, 40)
-                  billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-                  billboard.AlwaysOnTop = true
-
-                  local frame = Instance.new("Frame")
-                  frame.Size = UDim2.new(1, 0, 1, 0)
-                  frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-                  frame.BackgroundTransparency = 0.2
-                  frame.Parent = billboard
-
-                  -- Smooth UI Corners
-                  local uiCorner = Instance.new("UICorner")
-                  uiCorner.CornerRadius = UDim.new(0, 10)
-                  uiCorner.Parent = frame
-
-                  -- Dynamic Team Color Outline
-                  local uiStroke = Instance.new("UIStroke")
-                  uiStroke.Thickness = 1.5
-                  uiStroke.Color = teamColor
-                  uiStroke.Parent = frame
-
-                  -- DisplayName Text Configuration
-                  local textLabel = Instance.new("TextLabel")
-                  textLabel.Size = UDim2.new(1, 0, 1, 0)
-                  textLabel.BackgroundTransparency = 1
-                  textLabel.Text = player.DisplayName
-                  textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                  textLabel.Font = Enum.Font.GothamBold
-                  textLabel.TextSize = 14
-                  textLabel.Parent = frame
-
-                  billboard.Parent = head
-               end
-            end
-
-            if player.Character then 
-               task.spawn(onCharacterAdded, player.Character) 
-            end
-            
-            -- Update colors if the player changes teams mid-game
-            player:GetPropertyChangedSignal("Team"):Connect(function()
-               if player.Character then
-                  onCharacterAdded(player.Character)
-               end
-            end)
-
-            EventConnections[player] = player.CharacterAdded:Connect(onCharacterAdded)
+         -- Generate tracking wrappers for all initial clients
+         for _, player in ipairs(Players:GetPlayers()) do
+             createESP(player)
          end
 
-         -- Initialize ESP for current lobby
-         for _, player in ipairs(Players:GetPlayers()) do 
-            startESP(player) 
-         end
-         
-         -- Listen for players joining and leaving
-         EventConnections["PlayerAdded"] = Players.PlayerAdded:Connect(startESP)
-         EventConnections["PlayerRemoving"] = Players.PlayerRemoving:Connect(function(player)
-            if HighlightFolder and HighlightFolder:FindFirstChild(player.Name) then 
-               HighlightFolder[player.Name]:Destroy() 
-            end
-            if EventConnections[player] then 
-               EventConnections[player]:Disconnect() 
-               EventConnections[player] = nil 
-            end
+         -- Track inbound network clients
+         ESP_Connection1 = Players.PlayerAdded:Connect(createESP)
+         ESP_Connection2 = Players.PlayerRemoving:Connect(function(player)
+             ActiveESP[player] = nil
+             if ESPFolder and ESPFolder:FindFirstChild(player.Name) then
+                 ESPFolder[player.Name]:Destroy()
+             end
+         end)
+
+         -- Run full-scale screen projection calculation loop
+         ESP_Loop = RunService.RenderStepped:Connect(function()
+             for _, player in ipairs(Players:GetPlayers()) do
+                 if player ~= LocalPlayer then
+                     if not ActiveESP[player] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                         createESP(player)
+                     end
+                     
+                     local data = ActiveESP[player]
+                     if data and data.Character and data.Character.Parent and data.HRP and data.HRP.Parent then
+                         local hrpPos, onScreen = Camera:WorldToViewportPoint(data.HRP.Position)
+
+                         if onScreen then
+                             -- Update team data in real-time
+                             local currentTeam, currentColor = getPlayerTeamInfo(player)
+                             if data.TeamTxt.Text ~= currentTeam:upper() then
+                                 data.TeamTxt.Text = currentTeam:upper()
+                                 data.TeamTxt.TextColor3 = currentColor
+                                 data.Stroke.Color = currentColor
+                                 data.TagStroke.Color = currentColor
+                             end
+
+                             local distance = (Camera.CFrame.Position - data.HRP.Position).Magnitude
+                             local scaleFactor = (1 / distance) * 1000
+                             local boxWidth = 3.5 * scaleFactor
+                             local boxHeight = 5.0 * scaleFactor
+
+                             data.Box.Size = UDim2.new(0, boxWidth, 0, boxHeight)
+                             data.Box.Position = UDim2.new(0, hrpPos.X - (boxWidth / 2), 0, hrpPos.Y - (boxHeight / 2))
+                             data.Box.Visible = true
+
+                             data.Tag.Position = UDim2.new(0, hrpPos.X - 90, 0, hrpPos.Y - (boxHeight / 2) - 55)
+                             data.Tag.Visible = true
+                         else
+                             data.Box.Visible = false
+                             data.Tag.Visible = false
+                         end
+                     elseif data then
+                         data.Box.Visible = false
+                         data.Tag.Visible = false
+                     end
+                 end
+             end
          end)
       else
          -- ==================== TOGGLE OFF ====================
-         for key, connection in pairs(EventConnections) do 
-            if connection then connection:Disconnect() end
-         end
-         EventConnections = {}
-
-         if HighlightFolder then 
-            HighlightFolder:Destroy() 
-            HighlightFolder = nil 
-         end
-
-         for _, player in ipairs(Players:GetPlayers()) do
-            if player.Character and player.Character:FindFirstChild("Head") then
-               local tag = player.Character.Head:FindFirstChild("OverheadNametag")
-               if tag then 
-                  tag:Destroy() 
-               end
-            end
-         end
+         if ESP_Loop then ESP_Loop:Disconnect() ESP_Loop = nil end
+         if ESP_Connection1 then ESP_Connection1:Disconnect() ESP_Connection1 = nil end
+         if ESP_Connection2 then ESP_Connection2:Disconnect() ESP_Connection2 = nil end
+         if ESPFolder then ESPFolder:Destroy() ESPFolder = nil end
+         ActiveESP = {}
       end
    end,
 })
