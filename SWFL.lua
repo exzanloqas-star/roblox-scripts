@@ -18,6 +18,9 @@ local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local EventConnections = {}
 local HighlightFolder = nil
+visualsTab:slider("Field of View", 70, 120, 70, function(val)
+    workspace.CurrentCamera.FieldOfView = val
+end, "fov")
 
  tpTab:button("Spawn", function() 
 local player = game:GetService("Players").LocalPlayer
