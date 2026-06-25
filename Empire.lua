@@ -6,10 +6,11 @@ local w = kyri.new("SWFL Script", {
 })
 
 local playerTab = w:tab("Player", "user")
-local tpTab = w:tab("Teleports", "navigation")
 local playertpTab = w:tab("Player Teleports", "map-pin-plus")
 local visualsTab = w:tab("Visuals", "eye")
 local vehicleTab = w:tab("Vehicles", "car")
+local autofarm = w:tab("AutoFarms", "repeat-2")
+
 
 local TargetWalkSpeed = 16
 local TargetJumpPower = 50
@@ -21,6 +22,80 @@ local HighlightFolder = nil
 visualsTab:slider("Field of View", 70, 120, 70, function(val)
     workspace.CurrentCamera.FieldOfView = val
 end, "fov")
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+local targetPlayerName = "None"
+local followConnection = nil
+local isFollowerEnabled = false -- Tracks toggle state
+
+-- Helper function to get an updated list of player names
+local function getPlayerNames()
+    local names = {"None"}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= localPlayer then
+            table.insert(names, p.Name)
+        end
+    end
+    return names
+end
+
+-- Function to manage the actual tracking loop state
+local function updateFollower()
+    -- Clean up any existing connection first
+    if followConnection then
+        followConnection:Disconnect()
+        followConnection = nil
+    end
+
+    -- Only track if the toggle is ON and a valid player is chosen
+    if not isFollowerEnabled or targetPlayerName == "None" or targetPlayerName == nil then 
+        return 
+    end
+
+    -- Start the tracking loop
+    followConnection = RunService.Heartbeat:Connect(function()
+        local targetPlayer = Players:FindFirstChild(targetPlayerName)
+        
+        if not targetPlayer or not targetPlayer.Character then return end
+        if not localPlayer.Character then return end
+        
+        local myRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        
+        if myRoot and targetRoot then
+            -- Position your avatar slightly behind the target player
+            myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
+            myRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        end
+    end)
+end
+
+-- 1. Create the Master Toggle
+autofarm:toggle("Enable Auto Bounty", false, function(state)
+    isFollowerEnabled = state
+    w:notify("Follower", state and "Enabled" or "Disabled", 2)
+    updateFollower()
+end, "follower_toggle")
+
+-- 2. Create the Player Dropdown
+local playerDropdown = autofarm:dropdown("Select Target", getPlayerNames(), "None", function(val)
+    targetPlayerName = val
+    w:notify("Bounty Target", "Set to: " .. val, 2)
+    updateFollower()
+end, "player_follower_dropdown")
+
+-- 3. Background thread to keep player options refreshed every 5 seconds
+task.spawn(function()
+    while true do
+        task.wait(5)
+        if playerDropdown and typeof(playerDropdown.set) == "function" then
+            playerDropdown:set(getPlayerNames())
+        end
+    end
+end)
 
 
 -- Persistent Loop to force values against anti-cheats
@@ -913,8 +988,143 @@ vehicleTab:keybind("Accel Key", "W", function(k) velocityEnabledKeyCode = Enum.K
 vehicleTab:slider("Brake Force", 0, 300, 150, function(v) velocityMult2 = v/1000 end, "velMult2")
 vehicleTab:keybind("Brake Key", "S", function(k) qbEnabledKeyCode = Enum.KeyCode[k] end, "qbKey")
 vehicleTab:keybind("Stop Key", "P", function(k) stopKeyCode = Enum.KeyCode[k] end, "stopKey")
+-- Global control variable to manage the loop state
+_G.ATMAutofarm = false
 
+autofarm:toggle("ATM Autofarm", false, function(state)
+    _G.ATMAutofarm = state
+    w:notify("ATM Autofarm", state and "on" or "off", 2)
+    
+    -- If toggled on, spawn the autofarm loop in the background
+    if state then
+        task.spawn(function()
+            local Workspace = game:GetService("Workspace")
+            local Players = game:GetService("Players")
+            local VirtualInputManager = game:GetService("VirtualInputManager")
 
+            local spawnersFolder = Workspace:WaitForChild("Game"):WaitForChild("Jobs"):WaitForChild("CriminalATMSpawners")
+            local player = Players.LocalPlayer
+
+            -- Function to find all valid, normal ATMs based on attributes
+            local function getValidATMs()
+                local validATMs = {}
+                for _, spawner in ipairs(spawnersFolder:GetChildren()) do
+                    if spawner.Name == "CriminalATMSpawner" then
+                        local atm = spawner:FindFirstChild("CriminalATM")
+                        if atm and atm:GetAttribute("State") == "Normal" then
+                            table.insert(validATMs, atm)
+                        end
+                    end
+                end
+                return validATMs
+            end
+
+            -- Function to safely get the physical part of an ATM
+            local function getATMPart(atm)
+                if atm:IsA("BasePart") then
+                    return atm
+                elseif atm:IsA("Model") then
+                    return atm.PrimaryPart or atm:FindFirstChildWhichIsA("BasePart")
+                end
+                return nil
+            end
+
+            -- Function to wait until an ATM resets, keeping the player safe in the sky
+            local function waitForNormalATMs(rootPart)
+                print("All ATMs cleared. Teleporting to a safe height to wait...")
+                
+                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 500, 0)
+                rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                
+                local safePlatform = Instance.new("Part")
+                safePlatform.Size = Vector3.new(10, 1, 10)
+                safePlatform.CFrame = rootPart.CFrame - Vector3.new(0, 3.5, 0)
+                safePlatform.Anchored = true
+                safePlatform.Transparency = 1
+                safePlatform.Parent = Workspace
+                
+                -- Dynamic loop: exits if an ATM resets OR if the user turns the toggle off
+                while _G.ATMAutofarm do
+                    local available = getValidATMs()
+                    if #available > 0 then
+                        print("Valid ATM detected! Returning to farm.")
+                        break
+                    end
+                    task.wait(2)
+                end
+                
+                safePlatform:Destroy()
+            end
+
+            -- Main Loop Core Execution
+            while _G.ATMAutofarm do
+                if not player or not player.Character then 
+                    task.wait(1)
+                    continue 
+                end
+                
+                local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                if not rootPart then 
+                    task.wait(1)
+                    continue 
+                end
+                
+                local availableATMs = getValidATMs()
+                
+                -- Go to sky safe zone if no normal ATMs are active
+                if #availableATMs == 0 then
+                    waitForNormalATMs(rootPart)
+                    if not _G.ATMAutofarm then break end -- Extra safety check after waiting
+                    availableATMs = getValidATMs() 
+                end
+                
+                for i, atm in ipairs(availableATMs) do
+                    -- Instantly break out of checking ATMs if user clicked toggle off mid-cycle
+                    if not _G.ATMAutofarm then break end
+                    
+                    local atmPart = getATMPart(atm)
+                    if not atmPart then continue end
+                    
+                    -- 1. Teleport slightly above the ATM
+                    rootPart.CFrame = atmPart.CFrame + Vector3.new(0, 3, 0)
+                    rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0) 
+                    
+                    task.wait(0.3) 
+                    
+                    -- 2. Verify Prompt
+                    local prompt = atm:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if not prompt or not prompt.Enabled then
+                        task.wait(0.2)
+                        prompt = atm:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    end
+                    
+                    if not prompt or not prompt.Enabled then
+                        print("ATM " .. i .. " missing prompt. Skipping...")
+                        continue 
+                    end
+                    
+                    -- 3. Interaction Phase
+                    local interactionKey = prompt.KeyboardKeyCode
+                    local holdDuration = prompt.HoldDuration
+                    
+                    print("Interacting with ATM " .. i .. "...")
+                    
+                    VirtualInputManager:SendKeyEvent(true, interactionKey, false, game)
+                    task.wait(holdDuration + 0.3)
+                    VirtualInputManager:SendKeyEvent(false, interactionKey, false, game)
+                    
+                    print("Interaction finished. Waiting 2 seconds in place...")
+                    
+                    -- 4. Regular 2 second cooldown delay
+                    task.wait(2.0) 
+                end
+                
+                task.wait(1)
+            end
+            print("ATM Autofarm completely stopped.")
+        end)
+    end
+end, "atm_autofarm")
 
 
 
