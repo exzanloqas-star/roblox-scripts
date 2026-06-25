@@ -35,8 +35,9 @@ local isFollowerEnabled = false -- Tracks toggle state
 local function getPlayerNames()
     local names = {"None"}
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= localPlayer then
-            table.insert(names, p.Name)
+        if p ~= Players.LocalPlayer then
+            local formattedName = p.DisplayName .. " (@" .. p.Name .. ")"
+            table.insert(names, formattedName)
         end
     end
     return names
@@ -82,8 +83,14 @@ end, "follower_toggle")
 
 -- 2. Create the Player Dropdown
 local playerDropdown = autofarm:dropdown("Select Target", getPlayerNames(), "None", function(val)
-    targetPlayerName = val
-    w:notify("Bounty Target", "Set to: " .. val, 2)
+    if val == "None" or val == nil then
+        targetPlayerName = "None"
+    else
+        local username = val:match("@([%w_]+)")
+        targetPlayerName = username or "None"
+    end
+    
+    w:notify("Follower Target", "Set to: " .. targetPlayerName, 2)
     updateFollower()
 end, "player_follower_dropdown")
 
