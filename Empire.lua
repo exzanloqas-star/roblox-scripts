@@ -32,6 +32,15 @@ local followConnection = nil
 local isFollowerEnabled = false -- Tracks toggle state
 
 -- Helper function to get an updated list of player names
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+local targetPlayerName = "None"
+local followConnection = nil
+local isFollowerEnabled = false
+
+-- Helper function to generate Display Name (@Username) formatting
 local function getPlayerNames()
     local names = {"None"}
     for _, p in ipairs(Players:GetPlayers()) do
@@ -74,7 +83,7 @@ local function updateFollower()
     end)
 end
 
--- 1. Create the Master Toggle
+-- 1. Create the Master Toggle (Assumes 'autofarm' tab variable is already defined above this block)
 autofarm:toggle("Enable Auto Bounty", false, function(state)
     isFollowerEnabled = state
     w:notify("Follower", state and "Enabled" or "Disabled", 2)
