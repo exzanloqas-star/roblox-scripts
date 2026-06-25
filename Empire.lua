@@ -31,13 +31,11 @@ local targetPlayerName = "None"
 local followConnection = nil
 local isFollowerEnabled = false -- Tracks toggle state
 
--- Helper function to get an updated list of player names
--- Helper function to generate Display Name (@Username) formatting
+-- 1. DEFINE THE FUNCTION FIRST (So the dropdown can read it)
 local function getPlayerNames()
     local names = {"None"}
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= localPlayer then
-            -- Format: DisplayName (@RealUsername)
+        if p ~= Players.LocalPlayer then
             local formattedName = p.DisplayName .. " (@" .. p.Name .. ")"
             table.insert(names, formattedName)
         end
@@ -82,13 +80,11 @@ autofarm:toggle("Enable Auto Bounty", false, function(state)
     updateFollower()
 end, "follower_toggle")
 
--- 2. Create the Player Dropdown
--- Update your dropdown to look like this:
+-- 3. CREATE THE DROPDOWN USING THE TAB VARIABLE
 local playerDropdown = autofarm:dropdown("Select Target", getPlayerNames(), "None", function(val)
     if val == "None" or val == nil then
         targetPlayerName = "None"
     else
-        -- Extracts the exact text hidden inside the (@...)
         local username = val:match("@([%w_]+)")
         targetPlayerName = username or "None"
     end
@@ -96,11 +92,12 @@ local playerDropdown = autofarm:dropdown("Select Target", getPlayerNames(), "Non
     w:notify("Follower Target", "Set to: " .. targetPlayerName, 2)
     updateFollower()
 end, "player_follower_dropdown")
--- 3. Background thread to keep player options refreshed every 5 seconds
+
+-- 4. BACKGROUND REFRESH THREAD
 task.spawn(function()
     while true do
         task.wait(5)
-        if playerDropdown and typeof(playerDropdown.set) == "function" then
+        if playerDropdown and playerDropdown.set then
             playerDropdown:set(getPlayerNames())
         end
     end
