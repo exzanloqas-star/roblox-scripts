@@ -113,6 +113,74 @@ task.spawn(function()
 end)
 
 
+-- Assumes Players and Workspace services are defined at the top of your script
+
+-- Assumes Players and Workspace services are defined at the top of your script
+
+autofarm:button("TP to Random ATM", function()
+    local Workspace = game:GetService("Workspace")
+    local Players = game:GetService("Players")
+    local localPlayer = Players.LocalPlayer
+    
+    if not localPlayer or not localPlayer.Character then return end
+    local rootPart = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    local validATMs = {}
+
+    -- 1. Scan regular Criminal ATM Spawners
+    local normalSpawnersFolder = Workspace.Game.Jobs:FindFirstChild("CriminalATMSpawners")
+    if normalSpawnersFolder then
+        for _, spawner in ipairs(normalSpawnersFolder:GetChildren()) do
+            if spawner.Name == "CriminalATMSpawner" then
+                local atm = spawner:FindFirstChild("CriminalATM")
+                if atm and atm:GetAttribute("State") == "Normal" then
+                    table.insert(validATMs, atm)
+                end
+            end
+        end
+    end
+
+    -- 2. Scan the Water ATM Spawner location
+    local waterSpawner = Workspace.Game.Jobs:FindFirstChild("CriminalATMSpawnerWater")
+    if waterSpawner then
+        local waterAtm = waterSpawner:FindFirstChild("CriminalATMWater")
+        -- Checks if the water ATM exists and evaluates its state if it uses attributes
+        if waterAtm then
+            local state = waterAtm:GetAttribute("State")
+            if state == nil or state == "Normal" then
+                table.insert(validATMs, waterAtm)
+            end
+        end
+    end
+
+    -- 3. Check if any valid ATMs were found in either location
+    if #validATMs == 0 then
+        w:notify("Teleport Error", "No normal or water ATMs are active right now!", 2)
+        return
+    end
+
+    -- 4. Pick a completely random ATM from the combined list
+    local randomATM = validATMs[math.random(1, #validATMs)]
+    
+    -- 5. Safely locate the physical part of the selected ATM
+    local atmPart = nil
+    if randomATM:IsA("BasePart") then
+        atmPart = randomATM
+    elseif randomATM:IsA("Model") then
+        atmPart = randomATM.PrimaryPart or randomATM:FindFirstChildWhichIsA("BasePart")
+    end
+
+    -- 6. Teleport directly to it
+    if atmPart then
+        rootPart.CFrame = atmPart.CFrame + Vector3.new(0, 3, 0)
+        rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0) -- Stops physics momentum fling
+        w:notify("Teleport Success", "Teleported to a random ATM!", 2)
+    else
+        w:notify("Teleport Error", "Could not resolve ATM physical position.", 2)
+    end
+end)
+
 -- Persistent Loop to force values against anti-cheats
 task.spawn(function()
     while task.wait() do
