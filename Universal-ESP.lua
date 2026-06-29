@@ -162,17 +162,21 @@ visuals:AddToggle('Chams', {
         refreshAll()
     end
 })
-visuals:AddLabel('Chams Color'):AddColorPicker('Chams Color', {
-    Default = Color3.new(0, 1, 0), -- Bright green
-    Title = 'Chams Color', -- Optional. Allows you to have a custom color picker title (when you open it)
-    Transparency = 0, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+visuals:AddLabel('Chams Color Settings')
+
+-- 2. Add the ColorPicker to the Groupbox directly
+visuals:AddColorPicker('ChamsColor', {
+    Default = Color3.new(0, 1, 0),
+    Title = 'Chams Color',
+    Transparency = 0,
 
     Callback = function(Value)
-       for _, player in pairs(Players:GetPlayers()) do
+        for _, player in pairs(Players:GetPlayers()) do
             if player.Character then
                 local hl = player.Character:FindFirstChild("ESP_Highlight")
                 if hl then
                     hl.FillColor = Value
+                    -- Use the picker's transparency property directly
                     hl.FillTransparency = Options.ChamsColor.Transparency
                 end
             end
@@ -180,10 +184,12 @@ visuals:AddLabel('Chams Color'):AddColorPicker('Chams Color', {
     end
 })
 
-visuals:AddLabel('ESP Color'):AddColorPicker('ESP Color', {
-    Default = Color3.fromRGB(0, 255, 0), -- Bright green
-    Title = 'Choose ESP Color', -- Optional. Allows you to have a custom color picker title (when you open it)
-    Transparency = 0, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+-- Repeat the same logic for the ESP Color
+visuals:AddLabel('ESP Color Settings')
+visuals:AddColorPicker('ESPColor', {
+    Default = Color3.fromRGB(0, 255, 0),
+    Title = 'Choose ESP Color',
+    Transparency = 0,
 
     Callback = function(Value)
         ESP.Color = Value 
