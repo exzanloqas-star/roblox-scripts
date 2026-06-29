@@ -93,87 +93,96 @@ visual:AddToggle('chams', {
 })
 
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
--- Initialize settings
-getgenv().Enabled = false         -- Master Switch
-getgenv().ShowHitbox = false     -- Visual Toggle
-getgenv().HitboxSize = Vector3.new(2, 2, 2)
+local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 
--- Centralized Function
-local function refreshHitboxes()
-    if not getgenv().Enabled then return end
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                hrp.Size = getgenv().HitboxSize
-                hrp.CanCollide = false
-                hrp.Transparency = getgenv().ShowHitbox and 0.5 or 1
-            end
-        end
-    end
+-- Configuration
+getgenv().SilentAimEnabled = true
+local isLeftMouseDown = false
+local isRightMouseDown = false
+local autoClickConnection = nil
+
+-- Core Functions
+local function isLobbyVisible()
+    -- Ensure this path matches your game's UI
+    return localPlayer.PlayerGui.MainGui.MainFrame.Lobby.Currency.Visible == true
 end
 
--- 1. Master Switch
-combat:AddToggle('MasterSwitch', {
-    Text = 'Enable Hitbox System',
-    Default = false,
-    Callback = function(Value)
-        getgenv().Enabled = Value
-        if not Value then
-            -- Reset players if disabled
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    p.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 2)
-                    p.Character.HumanoidRootPart.Transparency = 1
+local function getClosestPlayerToMouse()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local mousePosition = UserInputService:GetMouseLocation()
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local headPosition, onScreen = camera:WorldToViewportPoint(player.Character.Head.Position)
+            if onScreen then
+                local distance = (Vector2.new(headPosition.X, headPosition.Y) - mousePosition).Magnitude
+                if distance < shortestDistance then
+                    closestPlayer = player
+                    shortestDistance = distance
                 end
             end
-        else
-            refreshHitboxes()
         end
     end
-})
+    return closestPlayer
+end
 
--- 2. Visual Toggle
-combat:AddToggle('ViewHitbox', {
-    Text = 'View Hitboxes',
-    Default = false,
-    Callback = function(Value)
-        getgenv().ShowHitbox = Value
-        refreshHitboxes()
-    end
-})
-
--- 3. Size Slider
-combat:AddSlider('HitboxSizeSlider', {
-    Text = 'Hitbox Size',
-    Default = 2,
-    Min = 2,
-    Max = 10,
-    Rounding = 0,
-    Callback = function(Value)
-        getgenv().HitboxSize = Vector3.new(Value, Value, Value)
-        refreshHitboxes()
-    end
-})
-
--- Auto-apply on new spawns
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        refreshHitboxes()
+local function autoClick()
+    if autoClickConnection then autoClickConnection:Disconnect() end
+    autoClickConnection = RunService.Heartbeat:Connect(function()
+        if (isLeftMouseDown or isRightMouseDown) and getgenv().SilentAimEnabled then
+            if not isLobbyVisible() then
+                mouse1click()
+            end
+        else
+            autoClickConnection:Disconnect()
+        end
     end)
+end
+
+-- Linoria UI Integration
+CombatTab:AddToggle('SilentAim', {
+    Text = 'Enable Silent Aim & Auto-Fire',
+    Default = true,
+    Tooltip = 'Toggles the silent aim camera lock and auto-clicking',
+    Callback = function(Value)
+        getgenv().SilentAimEnabled = Value
+    end
+})
+
+-- Input Listeners
+UserInputService.InputBegan:Connect(function(input, isProcessed)
+    if isProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isLeftMouseDown = true
+        if getgenv().SilentAimEnabled then autoClick() end
+    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+        isRightMouseDown = true
+        if getgenv().SilentAimEnabled then autoClick() end
+    end
 end)
 
--- Background update loop
-task.spawn(function()
-    while true do
-        if getgenv().Enabled then
-            refreshHitboxes()
-        end
-        task.wait(5)
+UserInputService.InputEnded:Connect(function(input, isProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isLeftMouseDown = false
+    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+        isRightMouseDown = false
+    end
+end)
+
+-- Main Execution Loop
+RunService.Heartbeat:Connect(function()
+    if not getgenv().SilentAimEnabled or isLobbyVisible() then return end
+    
+    local target = getClosestPlayerToMouse()
+    if target and target.Character and target.Character:FindFirstChild("Head") then
+        local head = target.Character.Head
+        -- Camera Lock
+        camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
     end
 end)
 
