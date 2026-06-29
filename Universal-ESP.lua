@@ -162,12 +162,13 @@ visuals:AddToggle('Chams', {
         refreshAll()
     end
 })
-visuals:AddLabel('Chams Color'):AddColorPicker('ChamsColor', {
-    Default = Color3.fromRGB(255, 0, 4),
-    Title = 'Chams Color & Transparency',
-    Transparency = 0.5, -- Enables the transparency slider
+LeftGroupBox:AddLabel('Chams Color'):AddColorPicker('Chams Color', {
+    Default = Color3.new(0, 1, 0), -- Bright green
+    Title = 'Chams Color', -- Optional. Allows you to have a custom color picker title (when you open it)
+    Transparency = 0, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
     Callback = function(Value)
-        for _, player in pairs(Players:GetPlayers()) do
+       for _, player in pairs(Players:GetPlayers()) do
             if player.Character then
                 local hl = player.Character:FindFirstChild("ESP_Highlight")
                 if hl then
