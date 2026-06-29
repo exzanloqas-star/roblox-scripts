@@ -146,11 +146,12 @@ end
 
 -- Linoria UI Integration
 combat:AddToggle('SilentAim', {
-    Text = 'Enable Silent Aim & Auto-Fire',
-    Default = true,
-    Tooltip = 'Toggles the silent aim camera lock and auto-clicking',
+    Text = 'Silent Aim',
+    Default = false, 
+    Tooltip = 'Sielnt Aim', 
+
     Callback = function(Value)
-        getgenv().SilentAimEnabled = Value
+getgenv().SilentAimEnabled = Value
     end
 })
 
