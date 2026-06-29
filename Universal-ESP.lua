@@ -162,20 +162,22 @@ visuals:AddToggle('Chams', {
         refreshAll()
     end
 })
-visuals:AddLabel("Chams Color"):AddColorPicker("ChamsColor", {
-    Default = Color3.fromRGB(255, 0, 4), -- Default Red
-    Title = "Chams Color",
+visuals:AddLabel('Chams Color'):AddColorPicker('ChamsColor', {
+    Default = Color3.fromRGB(255, 0, 4),
+    Title = 'Chams Color & Transparency',
+    Transparency = 0.5, -- Enables the transparency slider
     Callback = function(Value)
-        -- Update existing highlights immediately when color changes
         for _, player in pairs(Players:GetPlayers()) do
             if player.Character then
                 local hl = player.Character:FindFirstChild("ESP_Highlight")
-                if hl then hl.FillColor = Value end
+                if hl then
+                    hl.FillColor = Value
+                    hl.FillTransparency = Options.ChamsColor.Transparency
+                end
             end
         end
     end
 })
-
 
 visuals:AddLabel('ESP Color'):AddColorPicker('ESP Color', {
     Default = Color3.fromRGB(0, 255, 0), -- Bright green
