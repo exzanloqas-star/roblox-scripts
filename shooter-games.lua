@@ -40,7 +40,7 @@ local function updateHighlights(enabled)
 				-- Re-create if it was deleted
 				local newHighlight = Instance.new("Highlight")
 				newHighlight.Name = "PlayerHighlight"
-				newHighlight.FillColor = Color3.fromRGB(255, 0, 4)
+				newHighlight.FillColor = Color3.fromRGB(0, 255, 0)
 				newHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
 				newHighlight.FillTransparency = 0.5
 				newHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
@@ -54,7 +54,7 @@ local function applyHighlight(player)
 	player.CharacterAdded:Connect(function(character)
 		local highlight = Instance.new("Highlight")
 		highlight.Name = "PlayerHighlight"
-		highlight.FillColor = Color3.fromRGB(255, 0, 4)
+		highlight.FillColor = Color3.fromRGB(0, 255, 0)
 		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
 		highlight.FillTransparency = 0.5
 		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
