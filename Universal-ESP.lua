@@ -162,7 +162,7 @@ visuals:AddToggle('Chams', {
         refreshAll()
     end
 })
-GroupBox:AddLabel("Chams Color"):AddColorPicker("ChamsColor", {
+visuals:AddLabel("Chams Color"):AddColorPicker("ChamsColor", {
     Default = Color3.fromRGB(255, 0, 4), -- Default Red
     Title = "Chams Color",
     Callback = function(Value)
