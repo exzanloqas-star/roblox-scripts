@@ -166,7 +166,6 @@ visuals:AddToggle('Chams', {
 
 
 
--- Repeat the same logic for the ESP Color
 visuals:AddLabel('ESP Color'):AddColorPicker('ESP Color', {
     Default = Color3.fromRGB(0, 255, 0), -- Bright green
     Title = 'Choose ESP Color', -- Optional. Allows you to have a custom color picker title (when you open it)
