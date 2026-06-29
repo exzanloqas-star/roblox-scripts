@@ -167,11 +167,10 @@ visuals:AddToggle('Chams', {
 
 
 -- Repeat the same logic for the ESP Color
-visuals:AddLabel('ESP Color Settings')
-visuals:AddColorPicker('ESPColor', {
-    Default = Color3.fromRGB(0, 255, 0),
-    Title = 'Choose ESP Color',
-    Transparency = 0,
+visuals:AddLabel('ESP Color'):AddColorPicker('ESP Color', {
+    Default = Color3.fromRGB(0, 255, 0), -- Bright green
+    Title = 'Choose ESP Color', -- Optional. Allows you to have a custom color picker title (when you open it)
+    Transparency = 0, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
 
     Callback = function(Value)
         ESP.Color = Value 
