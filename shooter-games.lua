@@ -83,7 +83,7 @@ Players.PlayerAdded:Connect(applyHighlight)
 
 visual:AddToggle('chams', {
     Text = 'Chams',
-    Default = true, 
+    Default = false, 
     Tooltip = 'chams', 
 
     Callback = function(Value)
