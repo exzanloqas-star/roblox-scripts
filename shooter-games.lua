@@ -23,7 +23,7 @@ local Tabs = {
 
 
 local visual = Tabs.Main:AddLeftGroupbox('visuals')
-local combat = Tabs.Main:AddRightGroupbox('hitbox')
+local combat = Tabs.Main:AddRightGroupbox('combat')
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
@@ -145,7 +145,7 @@ local function autoClick()
 end
 
 -- Linoria UI Integration
-CombatTab:AddToggle('SilentAim', {
+combat:AddToggle('SilentAim', {
     Text = 'Enable Silent Aim & Auto-Fire',
     Default = true,
     Tooltip = 'Toggles the silent aim camera lock and auto-clicking',
